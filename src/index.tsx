@@ -1,8 +1,10 @@
 import * as esbuild from 'esbuild-wasm';
-
 import { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { fetchPlugin } from './plugins/fetch-plugin';
 import { unpkgPathPlugin } from './plugins/unpkg-path-plugin';
+
+const wasmLink = 'https://unpkg.com/esbuild-wasm@0.8.27/esbuild.wasm';
 
 const App = () => {
     const ref = useRef<any>();
@@ -17,7 +19,7 @@ const App = () => {
     const startService = async () => {
         ref.current = await esbuild.startService({
             worker: true,
-            wasmURL: '/esbuild.wasm',
+            wasmURL: wasmLink,
         });
     };
 
@@ -26,15 +28,11 @@ const App = () => {
             return;
         }
 
-        // const result = await ref.current.transform(input, {
-        //     loader: 'jsx',
-        //     target: 'es2015',
-        // });
         const result = await ref.current.build({
             entryPoints: ['index.js'],
             bundle: true,
             write: false,
-            plugins: [unpkgPathPlugin()],
+            plugins: [unpkgPathPlugin(), fetchPlugin(input)],
             define: {
                 'process.env.NODE_ENV': '"production"',
                 global: 'window',
