@@ -1,5 +1,11 @@
 import * as esbuild from 'esbuild-wasm';
 import axios from 'axios';
+import localForage from 'localforage';
+
+const fileCache = localForage.createInstance({
+    name: 'file-cache',
+    description: 'File cache for unpkg.com resources',
+});
 
 export const unpkgPathPlugin = () => {
     return {
@@ -35,19 +41,32 @@ export const unpkgPathPlugin = () => {
                     return {
                         loader: 'jsx',
                         contents: `
-              import React, {useState} from 'react';
-              console.log(React, useState);
+              import React from 'react-select';        
+              console.log(React);
             `,
                     };
                 }
 
+                // check if we have a cached version of the file, if so, return it
+                const cached = await fileCache.getItem<esbuild.OnLoadResult>(
+                    args.path
+                );
+                if (cached) {
+                    return cached;
+                }
+                // if not, fetch it from unpkg.com and store it to cache
+
                 const { data, request } = await axios.get(args.path);
 
-                return {
+                const result: esbuild.OnLoadResult = {
                     loader: 'jsx',
                     contents: data,
                     resolveDir: new URL('./', request.responseURL).pathname,
                 };
+
+                await fileCache.setItem(args.path, result);
+
+                return result;
             });
         },
     };
